@@ -1,0 +1,280 @@
+---
+title: "COVID"
+author:
+- name: Kieran Healy
+  affiliation: Duke University
+  email: kjhealy@soc.duke.edu
+date: '`r format(Sys.Date(), "%B %d, %Y")`'
+crossrefYaml: "config/pandoc-crossref-settings.yaml"
+output:
+  pdf_document: 
+    md_extensions: +simple_tables+table_captions+yaml_metadata_block+smart
+    template: /Users/kjhealy/.pandoc/templates/rmd-latex.template
+    pandoc_args: [
+      "--bibliography", "/Users/kjhealy/Documents/bibs/socbib-pandoc.bib",
+      "--filter", "pandoc-crossref",
+      "--filter", "pandoc-citeproc",
+      "--csl", "/Users/kjhealy/.pandoc/csl/ajps.csl"
+      ]      
+  html_document: radix::radix_article
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraries, echo = FALSE}
+
+library(tidyverse)
+library(here)
+library(janitor)
+library(socviz)
+library(ggrepel)
+
+## --------------------------------------------------------------------
+## Custom font and theme, omit if you don't have the myriad library
+## (https://github.com/kjhealy/myriad) and associated Adobe fonts.
+## --------------------------------------------------------------------
+library(showtext)
+showtext_auto()
+library(myriad)
+import_myriad_semi()
+
+theme_set(theme_myriad_semi())
+
+### --------------------------------------------------------------------
+
+
+## cb-friendly palette
+col_pal <- c("#E69F00", "#0072B2", "#000000", "#56B4E9", "#009E73", "#F0E442", "#D55E00", "#CC79A7")
+
+```
+
+```{r functions}
+
+## Download today's excel file, saving it to data/ and reading it in
+get_ecdc_data <- function(url = "https://www.ecdc.europa.eu/sites/default/files/documents/",
+                          fname = "COVID-19-geographic-distribution-worldwide-", 
+                          date = lubridate::today(), 
+                          ext = "xlsx", 
+                          dest = "data") {
+  
+  target <-  paste0(url, fname, date, ".", ext)
+  message("target: ", target)
+
+  destination <- fs::path(here::here("data"), paste0(fname, date), ext = ext)
+  message("saving to: ", destination)
+  
+  tf <- tempfile(fileext = ext)
+  curl::curl_download(target, tf)
+  fs::file_copy(tf, destination)
+  
+  switch(ext, 
+  xls = janitor::clean_names(readxl::read_xls(tf)),
+  xlsx = janitor::clean_names(readxl::read_xlsx(tf))
+  )
+}                          
+
+
+
+
+
+## A useful function from Edward Visel, which does a thing
+## with tibbles that in the past I've done variable-by-variable
+## using match(), like an animal. The hardest part was 
+## figuring out that this operation is called a coalescing join  
+## https://alistaire.rbind.io/blog/coalescing-joins/
+coalesce_join <- function(x, y, 
+                          by = NULL, suffix = c(".x", ".y"), 
+                          join = dplyr::full_join, ...) {
+    joined <- join(x, y, by = by, suffix = suffix, ...)
+    # names of desired output
+    cols <- union(names(x), names(y))
+    
+    to_coalesce <- names(joined)[!names(joined) %in% cols]
+    suffix_used <- suffix[ifelse(endsWith(to_coalesce, suffix[1]), 1, 2)]
+    # remove suffixes and deduplicate
+    to_coalesce <- unique(substr(
+        to_coalesce, 
+        1, 
+        nchar(to_coalesce) - nchar(suffix_used)
+    ))
+    
+    coalesced <- purrr::map_dfc(to_coalesce, ~dplyr::coalesce(
+        joined[[paste0(.x, suffix[1])]], 
+        joined[[paste0(.x, suffix[2])]]
+    ))
+    names(coalesced) <- to_coalesce
+    
+    dplyr::bind_cols(joined, coalesced)[cols]
+}
+
+
+```
+
+
+```{r iso-country-codes}
+## Country codes. The ECDC does not quite use standard codes for countries
+## These are the iso2 and iso3 codes, plus some convenient groupings for
+## possible use later
+iso3_cnames <- read_csv("data/countries_iso3.csv")
+iso2_to_iso3 <- read_csv("data/iso2_to_iso3.csv")
+
+cname_table <- left_join(iso3_cnames, iso2_to_iso3)
+
+eu <- c("AUT", "BEL", "BGR", "HRV", "CYP", "CZE", "DNK", "EST", "FIN", "FRA",
+        "DEU", "GRC", "HUN", "IRL", "ITA", "LVA", "LTU", "LUX", "MLT", "NLD",
+        "POL", "PRT", "ROU", "SVK", "SVN", "ESP", "SWE", "GBR")
+
+europe <- c("ALB", "AND", "AUT", "BLR", "BEL", "BIH", "BGR", "HRV", "CYP", "CZE",
+        "DNK", "EST", "FRO", "FIN", "FRA", "DEU", "GIB", "GRC", "HUN", "ISL",
+        "IRL", "ITA", "LVA", "LIE", "LTU", "LUX", "MKD", "MLT", "MDA", "MCO",
+        "NLD", "NOR", "POL", "PRT", "ROU", "RUS", "SMR", "SRB", "SVK", "SVN",
+        "ESP", "SWE", "CHE", "UKR", "GBR", "VAT", "RSB", "IMN", "MNE")
+
+north_america <- c("AIA", "ATG", "ABW", "BHS", "BRB", "BLZ", "BMU", "VGB", "CAN", "CYM",
+        "CRI", "CUB", "CUW", "DMA", "DOM", "SLV", "GRL", "GRD", "GLP", "GTM",
+        "HTI", "HND", "JAM", "MTQ", "MEX", "SPM", "MSR", "ANT", "KNA", "NIC",
+        "PAN", "PRI", "KNA", "LCA", "SPM", "VCT", "TTO", "TCA", "VIR", "USA",
+        "SXM")
+
+south_america <- c("ARG", "BOL", "BRA", "CHL", "COL", "ECU", "FLK", "GUF", "GUY", "PRY",
+                   "PER", "SUR", "URY", "VEN")
+
+
+africa <- c("DZA", "AGO", "SHN", "BEN", "BWA", "BFA", "BDI", "CMR", "CPV", "CAF",
+        "TCD", "COM", "COG", "DJI", "EGY", "GNQ", "ERI", "ETH", "GAB", "GMB",
+        "GHA", "GNB", "GIN", "CIV", "KEN", "LSO", "LBR", "LBY", "MDG", "MWI",
+        "MLI", "MRT", "MUS", "MYT", "MAR", "MOZ", "NAM", "NER", "NGA", "STP",
+        "REU", "RWA", "STP", "SEN", "SYC", "SLE", "SOM", "ZAF", "SHN", "SDN",
+        "SWZ", "TZA", "TGO", "TUN", "UGA", "COD", "ZMB", "TZA", "ZWE", "SSD",
+        "COD")
+
+asia <- c("AFG", "ARM", "AZE", "BHR", "BGD", "BTN", "BRN", "KHM", "CHN", "CXR",
+        "CCK", "IOT", "GEO", "HKG", "IND", "IDN", "IRN", "IRQ", "ISR", "JPN",
+        "JOR", "KAZ", "PRK", "KOR", "KWT", "KGZ", "LAO", "LBN", "MAC", "MYS",
+        "MDV", "MNG", "MMR", "NPL", "OMN", "PAK", "PHL", "QAT", "SAU", "SGP",
+        "LKA", "SYR", "TWN", "TJK", "THA", "TUR", "TKM", "ARE", "UZB", "VNM",
+        "YEM", "PSE")
+
+oceania <- c("ASM", "AUS", "NZL", "COK", "FJI", "PYF", "GUM", "KIR", "MNP", "MHL",
+        "FSM", "UMI", "NRU", "NCL", "NZL", "NIU", "NFK", "PLW", "PNG", "MNP",
+        "SLB", "TKL", "TON", "TUV", "VUT", "UMI", "WLF", "WSM", "TLS")
+
+
+
+
+```
+
+```{r get-and-clean-data}
+## there are typos in the file name! note 'disbtribution' rather than 'distribution'
+## https://www.ecdc.europa.eu/sites/default/files/documents/COVID-19-geographic-disbtribution-worldwide-2020-03-18.xls
+## I assume this'll get fixed or changed at some point. The good thing is that these data files are cumulative
+
+covid_raw <- get_ecdc_data(url = "https://www.ecdc.europa.eu/sites/default/files/documents/",
+                           fname = "COVID-19-geographic-disbtribution-worldwide-",
+                           date = "2020-03-18",
+                           ext = "xls")
+
+covid <- covid_raw %>%
+  mutate(date = lubridate::ymd(date_rep),
+         iso2 = geo_id)
+
+## merge in the iso country names
+covid <- left_join(covid, cname_table)
+
+## Looks like a missing data code
+## Also note that not everything in this dataset is a country
+covid %>% 
+  filter(cases == -9)
+
+
+## A few ECDC country codes are non-iso, notably the UK
+anti_join(covid, cname_table) %>%
+  select(geo_id, countries_and_territories, iso2, iso3, cname) %>%
+  distinct()
+
+## A small crosswalk file that we'll coalesce into the missing values
+## We need to specify the na explicity because the xwalk file has Namibia
+## as a country -- i.e. country code = string literal "NA"
+cname_xwalk <- read_csv("data/ecdc_to_iso2_xwalk.csv",
+                        na = "")
+
+## How to do this manually
+# covid <- covid %>%
+#   left_join(cname_xwalk, by = "geo_id") %>% 
+#   mutate(iso3 = coalesce(iso3.x, iso3.y),
+#          cname = coalesce(cname.x, cname.y)) %>% 
+#   select(-iso3.x, -iso3.y, cname.x, cname.y)
+
+## But nicer to use the function from Edward Visel
+covid <- coalesce_join(covid, cname_xwalk, 
+                       by = "geo_id", join = dplyr::left_join)
+
+
+## Take a look again
+anti_join(covid, cname_table) %>%
+  select(geo_id, countries_and_territories, iso2, iso3, cname) %>%
+  distinct()
+
+```
+
+```{r plots}
+
+## cumulative cases for selected countries
+cu_out <- covid %>%
+  filter(iso3 %in% c("ITA", "CHN", "GBR", "FRA", 
+                     "USA", "KOR")) %>%
+  group_by(cname) %>%
+  arrange(date) %>%
+  mutate(cases_na = na_if(cases, 0), 
+         deaths_na = na_if(deaths,0),
+         cu_cases = cumsum(cases),
+         cu_deaths = cumsum(deaths)) %>%
+  select(date, cname, cu_cases, cu_deaths) %>%
+  pivot_longer(cu_cases:cu_deaths, 
+               names_to = "measure", values_to = "count") %>%
+  mutate(measure = recode(measure, `cu_cases` = "Cases", 
+                         `cu_deaths` = "Deaths")) %>%
+  mutate(count = na_if(count, 0))
+
+cu_out %>% 
+  arrange(desc(date))
+
+cu_out %>% 
+  ggplot(mapping = aes(x = date, y = count, 
+                       color = measure)) + 
+  geom_line(size = 1.5) + 
+  scale_color_manual(values = col_pal) + 
+#  scale_y_continuous(labels = scales::comma_format(accuracy = 1)) + 
+  scale_y_continuous(trans = "log2",
+                     labels = scales::comma_format(accuracy = 1),
+                     breaks = 2^c(seq(1, 17, 2))) +
+  # scale_y_continuous(trans = "log10",
+  #                    labels = scales::comma_format(accuracy = 1)) +
+  labs(title = "COVID-19 Cumulative Recorded Cases and Deaths",
+       x = "Date", y = "Cumulative Reported Events (log 2 scale)", color = "Measure") +
+  facet_wrap(~ reorder(cname, -count, na.rm = TRUE)) + 
+  theme(legend.position = "top")
+  
+```
+
+```{r italy-only}
+
+cu_out %>% 
+  filter(cname == "Italy", date > "2020-02-20") %>%
+  ggplot(mapping = aes(x = date, y = count, 
+                       color = measure)) + 
+  geom_line(size = 1.5) + 
+  scale_color_manual(values = col_pal) + 
+  scale_y_continuous(trans = "log2",
+                     labels = scales::comma_format(accuracy = 1),
+                     breaks = 2^c(seq(1, 17, 2))) +
+  labs(title = "COVID-19 Cumulative Recorded Cases and Deaths in Italy",
+       x = "Date", y = "Cumulative Reported Events (log 2 scale)", color = "Measure") +
+  theme(legend.position = "top")
+
+
+```
+
+
