@@ -76,6 +76,30 @@ get_ecdc_data <- function(url = "https://www.ecdc.europa.eu/sites/default/files/
 }                          
 
 
+## Get Daily COVID Tracking Project Data
+
+## form is https://covidtracking.com/api/us/daily.csv
+
+get_uscovid_data <- function(url = "https://covidtracking.com/api/",
+                          unit = c("states", "us"),
+                          fname = "-", 
+                          date = lubridate::today(), 
+                          ext = "csv", 
+                          dest = "data/us_covid") {
+  unit <- match.arg(unit)
+  target <-  paste0(url, unit, "/", "daily.", ext)
+  message("target: ", target)
+
+  destination <- fs::path(here::here("data/covid_us"), paste0(unit, "_daily_", date), ext = ext)
+  message("saving to: ", destination)
+  
+  tf <- tempfile(fileext = ext)
+  curl::curl_download(target, tf)
+  fs::file_copy(tf, destination)
+  
+  janitor::clean_names(read_csv(tf))
+}                          
+
 
 
 
@@ -165,6 +189,8 @@ oceania <- c("ASM", "AUS", "NZL", "COK", "FJI", "PYF", "GUM", "KIR", "MNP", "MHL
 
 
 ```
+
+## European Centers for Disease Control Data
 
 ```{r get-and-clean-data}
 ## there are typos in the file name! note 'disbtribution' rather than 'distribution'
@@ -277,4 +303,28 @@ cu_out %>%
 
 ```
 
+## State-Level Data from [https://covidtracking.com]
+
+```{r}
+
+us_states_raw <- get_uscovid_data()
+
+us_states <- us_states_raw %>%
+  mutate(date = lubridate::ymd(date)) %>%
+  pivot_longer(positive:death, names_to = "measure", values_to = "count")
+
+us_states %>%
+  group_by(state) %>%
+  filter(measure == "positive") %>%
+  summarize(total = sum(count)) %>%
+  arrange(desc(total)) %>%
+  top_n(10) %>%
+  ggplot(aes(x = total, y = reorder(state, total))) + 
+  geom_point(size = 3) + 
+  labs(title = "Total Recorded Cases to Date",
+       y = NULL, 
+       x = "Count") + 
+  theme(axis.text.y = element_text(size = rel(1.5)))
+
+```
 
