@@ -199,8 +199,7 @@ oceania <- c("ASM", "AUS", "NZL", "COK", "FJI", "PYF", "GUM", "KIR", "MNP", "MHL
 
 covid_raw <- get_ecdc_data(url = "https://www.ecdc.europa.eu/sites/default/files/documents/",
                            fname = "COVID-19-geographic-disbtribution-worldwide-",
-                           date = "2020-03-18",
-                           ext = "xls")
+                           ext = "xlsx")
 
 covid <- covid_raw %>%
   mutate(date = lubridate::ymd(date_rep),
@@ -278,7 +277,8 @@ cu_out %>%
                      breaks = 2^c(seq(1, 17, 2))) +
   # scale_y_continuous(trans = "log10",
   #                    labels = scales::comma_format(accuracy = 1)) +
-  labs(title = "COVID-19 Cumulative Recorded Cases and Deaths",
+  labs(title = paste0("COVID-19 Cumulative Recorded Cases and Deaths to ", 
+                      max(cu_out$date)), 
        x = "Date", y = "Cumulative Reported Events (log 2 scale)", color = "Measure") +
   facet_wrap(~ reorder(cname, -count, na.rm = TRUE)) + 
   theme(legend.position = "top")
@@ -324,7 +324,27 @@ us_states %>%
   labs(title = "Total Recorded Cases to Date",
        y = NULL, 
        x = "Count") + 
-  theme(axis.text.y = element_text(size = rel(1.5)))
+  theme(axis.text.y = element_text(size = rel(2)))
+
+
+us_states %>%
+  group_by(state) %>%
+  mutate(flag = state == "NY") %>%
+  arrange(date) %>%
+  filter(measure == "positive", date > "2020-03-09") %>%
+  mutate(cu_total = cumsum(count)) %>%
+  top_n(10) %>%
+  ggplot(aes(x = date, y = cu_total, group = state, color = flag)) + 
+  geom_line(size = 0.5) + 
+  scale_color_manual(values = c("gray50", "red")) + 
+  guides(color = FALSE) + 
+  labs(title = "Cumulative Cases to Date, by State",
+       y = "Cases", 
+       x = "Date") + 
+  annotate("text", x = lubridate::ymd("2020-03-18"), y = 7500, 
+           label = "NY", color = "red") + 
+  theme(axis.text.y = element_text(size = rel(2)))
+
 
 ```
 
