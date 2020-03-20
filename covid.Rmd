@@ -193,9 +193,10 @@ oceania <- c("ASM", "AUS", "NZL", "COK", "FJI", "PYF", "GUM", "KIR", "MNP", "MHL
 ## European Centers for Disease Control Data
 
 ```{r get-and-clean-data}
-## there are typos in the file name! note 'disbtribution' rather than 'distribution'
-## https://www.ecdc.europa.eu/sites/default/files/documents/COVID-19-geographic-disbtribution-worldwide-2020-03-18.xls
-## I assume this'll get fixed or changed at some point. The good thing is that these data files are cumulative
+## There's a typo in the file name. Note 'disbtribution' rather than 'distribution'
+## e.g. COVID-19-geographic-disbtribution-worldwide-2020-03-18.xls
+## I assume this'll get fixed or changed at some point. 
+## The good thing is that these data files are cumulative
 
 covid_raw <- get_ecdc_data(url = "https://www.ecdc.europa.eu/sites/default/files/documents/",
                            fname = "COVID-19-geographic-disbtribution-worldwide-",
@@ -285,10 +286,10 @@ cu_out %>%
   
 ```
 
-```{r italy-only}
+```{r us-only}
 
 cu_out %>% 
-  filter(cname == "Italy", date > "2020-02-20") %>%
+  filter(cname == "United States", date > "2020-02-20") %>%
   ggplot(mapping = aes(x = date, y = count, 
                        color = measure)) + 
   geom_line(size = 1.5) + 
@@ -296,14 +297,14 @@ cu_out %>%
   scale_y_continuous(trans = "log2",
                      labels = scales::comma_format(accuracy = 1),
                      breaks = 2^c(seq(1, 17, 2))) +
-  labs(title = "COVID-19 Cumulative Recorded Cases and Deaths in Italy",
+  labs(title = "COVID-19 Cumulative Recorded Cases and Deaths in the United States",
        x = "Date", y = "Cumulative Reported Events (log 2 scale)", color = "Measure") +
   theme(legend.position = "top")
 
 
 ```
 
-## State-Level Data from [https://covidtracking.com]
+## US State-Level Data from [https://covidtracking.com]
 
 ```{r}
 
@@ -341,7 +342,7 @@ us_states %>%
   labs(title = "Cumulative Cases to Date, by State",
        y = "Cases", 
        x = "Date") + 
-  annotate("text", x = lubridate::ymd("2020-03-18"), y = 7500, 
+  annotate("text", x = lubridate::ymd("2020-03-19"), y = 11800, 
            label = "NY", color = "red") + 
   theme(axis.text.y = element_text(size = rel(2)))
 
