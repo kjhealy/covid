@@ -48,7 +48,8 @@ theme_set(theme_myriad_semi())
 
 
 ## cb-friendly palette
-col_pal <- c("#E69F00", "#0072B2", "#000000", "#56B4E9", "#009E73", "#F0E442", "#D55E00", "#CC79A7")
+col_pal <- c("#E69F00", "#0072B2", "#000000", "#56B4E9", 
+             "#009E73", "#F0E442", "#D55E00", "#CC79A7")
 
 ```
 
@@ -136,40 +137,6 @@ coalesce_join <- function(x, y,
 }
 
 
-### http://wresch.github.io/2013/03/08/asinh-scales-in-ggplot2.html
-### Inverse hyperbolic sine transformation
-### instead of a log transform
-
-asinh_breaks <- function(x) {
-  br <- function(r) {
-    lmin <- round(log10(r[1]))
-    lmax <- round(log10(r[2]))
-    lbreaks <- seq(lmin, lmax, by = 1)
-    breaks <- 10 ^ lbreaks
-  }
-  p.rng <- range(x[x > 0], na.rm = TRUE)
-  breaks <- br(p.rng)
-  if (min(x) <= 0) {breaks <- c(0, breaks)}
-  if (sum(x < 0) > 1) { #more negative values that expected from expanding scale that includes zero
-    n.rng <- -range(x[x < 0], na.rm = TRUE)
-    breaks <- c(breaks, -br(n.rng))
-  }
-  return(sort(breaks))
-}
-test_that("asinh_breaks make sense", {
-  expect_equal(asinh_breaks(c(-0.05, 0, 1, 101)), c(0, 1, 10, 100))
-  expect_equal(asinh_breaks(c(-0.11, -0.05, 0, 1, 101)), c(-0.1, 0, 1, 10, 100))
-  expect_equal(asinh_breaks(c(0, 10, 1001)), c(0, 10, 100, 1000))
-  expect_equal(asinh_breaks(c(0, 0.05, 0.07, 0.1, 0.2)), c(0, 0.1))
-  expect_equal(asinh_breaks(c(0.01, 0.02)), c(0.01))
-})
-
-asinh_trans <- function() {
-  scales::trans_new("asinh",
-            transform = asinh,
-            inverse   = sinh)
-}
-
 
 ```
 
@@ -182,6 +149,8 @@ iso3_cnames <- read_csv("data/countries_iso3.csv")
 iso2_to_iso3 <- read_csv("data/iso2_to_iso3.csv")
 
 cname_table <- left_join(iso3_cnames, iso2_to_iso3)
+
+cname_table
 
 eu <- c("AUT", "BEL", "BGR", "HRV", "CYP", "CZE", "DNK", "EST", "FIN", "FRA",
         "DEU", "GRC", "HUN", "IRL", "ITA", "LVA", "LTU", "LUX", "MLT", "NLD",
@@ -235,13 +204,18 @@ oceania <- c("ASM", "AUS", "NZL", "COK", "FJI", "PYF", "GUM", "KIR", "MNP", "MHL
 covid_raw <- get_ecdc_data(url = "https://www.ecdc.europa.eu/sites/default/files/documents/",
                            fname = "COVID-19-geographic-disbtribution-worldwide-",
                            ext = "xlsx")
+covid_raw
 
 covid <- covid_raw %>%
   mutate(date = lubridate::ymd(date_rep),
          iso2 = geo_id)
 
+covid
+
 ## merge in the iso country names
 covid <- left_join(covid, cname_table)
+
+covid
 
 ## Looks like a missing data code
 ## Also note that not everything in this dataset is a country
@@ -260,6 +234,7 @@ anti_join(covid, cname_table) %>%
 cname_xwalk <- read_csv("data/ecdc_to_iso2_xwalk.csv",
                         na = "")
 
+cname_xwalk
 ## How to do this manually
 # covid <- covid %>%
 #   left_join(cname_xwalk, by = "geo_id") %>% 
@@ -348,9 +323,11 @@ cov_curve <- covid %>%
   arrange(date) %>%
   mutate(cu_cases = cumsum(cases), 
          cu_deaths = cumsum(deaths)) %>%
-  filter(cu_cases > 99) %>%
+  filter(cu_deaths > 9) %>%
   mutate(days_elapsed = date - min(date),
          end_label = ifelse(date == max(date), cname, NA))
+
+cov_curve
 
 focus_cn <- c("CHN", "GBR", "USA", "IRN", "JPN",
               "KOR", "ITA", "FRA", "ESP")
@@ -365,21 +342,28 @@ cov_curve %>%
   ggplot(mapping = aes(x = days_elapsed, y = cu_deaths, 
          color = cname, label = end_label, 
          group = cname)) + 
-#  geom_point() + 
   geom_line(size = 0.8) + 
-  geom_text_repel(nudge_x = 1.1, segment.color = NA) + 
+  geom_text_repel(nudge_x = 1.1,
+                  nudge_y = 0.1, 
+                  segment.color = NA) + 
   guides(color = FALSE) + 
   scale_color_manual(values = prismatic::clr_darken(paletteer_d("ggsci::category20_d3"), 0.2)) +
   scale_y_continuous(labels = scales::comma_format(accuracy = 1), 
-                     trans = asinh_trans(), 
-                     breaks = c(10, 100, 1000, 5000)) + 
-  labs(x = "Days Since 100th Confirmed Case", 
-       y = "Cumulative Number of Deaths (log scale)", 
+                     breaks = c(32, 64, 128, 256, 512, 1024, 2048),
+                     trans = "log2") + 
+  labs(x = "Days Since 10th Confirmed Death", 
+       y = "Cumulative Number of Deaths (log2 scale)", 
        title = "Cumulative Deaths from COVID-19, Selected Countries", 
        subtitle = paste("Data as of", format(max(cov_curve$date), "%A, %B %e, %Y")), 
-       caption = "Kieran Healy @kjhealy / Data: ECDC")
-
-
+       caption = "Kieran Healy @kjhealy / Data: ECDC") + 
+    theme(plot.title = element_text(size = rel(2), face = "bold"),
+          plot.subtitle = element_text(size = rel(1.5)),
+          axis.text.y = element_text(size = rel(2)),
+          axis.title.x = element_text(size = rel(1.5)),
+          axis.title.y = element_text(size = rel(1.5)),
+          axis.text.x = element_text(size = rel(2)),
+          legend.text = element_text(size = rel(2))
+          )
 
 ```
 
