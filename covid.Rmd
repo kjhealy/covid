@@ -31,7 +31,7 @@ library(here)
 library(janitor)
 library(socviz)
 library(ggrepel)
-
+library(paletteer)
 
 ## --------------------------------------------------------------------
 ## Custom font and theme, omit if you don't have the myriad library
@@ -133,6 +133,41 @@ coalesce_join <- function(x, y,
     names(coalesced) <- to_coalesce
     
     dplyr::bind_cols(joined, coalesced)[cols]
+}
+
+
+### http://wresch.github.io/2013/03/08/asinh-scales-in-ggplot2.html
+### Inverse hyperbolic sine transformation
+### instead of a log transform
+
+asinh_breaks <- function(x) {
+  br <- function(r) {
+    lmin <- round(log10(r[1]))
+    lmax <- round(log10(r[2]))
+    lbreaks <- seq(lmin, lmax, by = 1)
+    breaks <- 10 ^ lbreaks
+  }
+  p.rng <- range(x[x > 0], na.rm = TRUE)
+  breaks <- br(p.rng)
+  if (min(x) <= 0) {breaks <- c(0, breaks)}
+  if (sum(x < 0) > 1) { #more negative values that expected from expanding scale that includes zero
+    n.rng <- -range(x[x < 0], na.rm = TRUE)
+    breaks <- c(breaks, -br(n.rng))
+  }
+  return(sort(breaks))
+}
+test_that("asinh_breaks make sense", {
+  expect_equal(asinh_breaks(c(-0.05, 0, 1, 101)), c(0, 1, 10, 100))
+  expect_equal(asinh_breaks(c(-0.11, -0.05, 0, 1, 101)), c(-0.1, 0, 1, 10, 100))
+  expect_equal(asinh_breaks(c(0, 10, 1001)), c(0, 10, 100, 1000))
+  expect_equal(asinh_breaks(c(0, 0.05, 0.07, 0.1, 0.2)), c(0, 0.1))
+  expect_equal(asinh_breaks(c(0.01, 0.02)), c(0.01))
+})
+
+asinh_trans <- function() {
+  scales::trans_new("asinh",
+            transform = asinh,
+            inverse   = sinh)
 }
 
 
@@ -309,15 +344,15 @@ cu_out %>%
 cov_curve <- covid %>%
   select(date, cname, iso3, cases, deaths) %>%
   drop_na(iso3) %>%
-  filter(cases > 99) %>%
   group_by(iso3) %>%
   arrange(date) %>%
   mutate(cu_cases = cumsum(cases), 
-         cu_deaths = cumsum(deaths), 
-         days_elapsed = date - min(date),
+         cu_deaths = cumsum(deaths)) %>%
+  filter(cu_cases > 99) %>%
+  mutate(days_elapsed = date - min(date),
          end_label = ifelse(date == max(date), cname, NA))
 
-focus_cn <- c("CHN", "GBR", "USA", "IRN", 
+focus_cn <- c("CHN", "GBR", "USA", "IRN", "JPN",
               "KOR", "ITA", "FRA", "ESP")
 
 
@@ -334,11 +369,12 @@ cov_curve %>%
   geom_line(size = 0.8) + 
   geom_text_repel(nudge_x = 1.1, segment.color = NA) + 
   guides(color = FALSE) + 
-  scale_color_manual(values = paletteer::paletteer_d("ggthemes::few_Dark")) +
-  scale_y_continuous(labels = scales::comma, 
-                     trans = "log2") + 
+  scale_color_manual(values = prismatic::clr_darken(paletteer_d("ggsci::category20_d3"), 0.2)) +
+  scale_y_continuous(labels = scales::comma_format(accuracy = 1), 
+                     trans = asinh_trans(), 
+                     breaks = c(10, 100, 1000, 5000)) + 
   labs(x = "Days Since 100th Confirmed Case", 
-       y = "Cumulative Number of Deaths (log2 scale)", 
+       y = "Cumulative Number of Deaths (log scale)", 
        title = "Cumulative Deaths from COVID-19, Selected Countries", 
        subtitle = paste("Data as of", format(max(cov_curve$date), "%A, %B %e, %Y")), 
        caption = "Kieran Healy @kjhealy / Data: ECDC")
