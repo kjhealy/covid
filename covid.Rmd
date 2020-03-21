@@ -26,10 +26,12 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r libraries, echo = FALSE}
 
 library(tidyverse)
+library(lubridate)
 library(here)
 library(janitor)
 library(socviz)
 library(ggrepel)
+
 
 ## --------------------------------------------------------------------
 ## Custom font and theme, omit if you don't have the myriad library
@@ -185,9 +187,6 @@ oceania <- c("ASM", "AUS", "NZL", "COK", "FJI", "PYF", "GUM", "KIR", "MNP", "MHL
         "FSM", "UMI", "NRU", "NCL", "NZL", "NIU", "NFK", "PLW", "PNG", "MNP",
         "SLB", "TKL", "TON", "TUV", "VUT", "UMI", "WLF", "WSM", "TLS")
 
-
-
-
 ```
 
 ## European Centers for Disease Control Data
@@ -283,8 +282,72 @@ cu_out %>%
        x = "Date", y = "Cumulative Reported Events (log 2 scale)", color = "Measure") +
   facet_wrap(~ reorder(cname, -count, na.rm = TRUE)) + 
   theme(legend.position = "top")
+
+## Just deaths
+cu_out %>% 
+  filter(measure == "Deaths") %>% 
+  ggplot(mapping = aes(x = date, y = count)) + 
+  geom_line(size = 1.5) + 
+#  scale_y_continuous(labels = scales::comma_format(accuracy = 1)) + 
+  scale_y_continuous(trans = "log2",
+                     labels = scales::comma_format(accuracy = 1),
+                     breaks = 2^c(seq(1, 17, 2))) +
+  # scale_y_continuous(trans = "log10",
+  #                    labels = scales::comma_format(accuracy = 1)) +
+  labs(title = paste0("COVID-19 Cumulative Recorded Deaths to ", 
+                      max(cu_out$date)), 
+       x = "Date", y = "Cumulative Reported Events (log 2 scale)") +
+  facet_wrap(~ reorder(cname, -count, na.rm = TRUE)) + 
+  theme(legend.position = "top")
+
   
 ```
+
+```{r}
+## The graph everyone draws, but let's use deaths not cases, given that testing is so 
+## laggy in so many places
+cov_curve <- covid %>%
+  select(date, cname, iso3, cases, deaths) %>%
+  drop_na(iso3) %>%
+  filter(cases > 99) %>%
+  group_by(iso3) %>%
+  arrange(date) %>%
+  mutate(cu_cases = cumsum(cases), 
+         cu_deaths = cumsum(deaths), 
+         days_elapsed = date - min(date),
+         end_label = ifelse(date == max(date), cname, NA))
+
+focus_cn <- c("CHN", "GBR", "USA", "IRN", 
+              "KOR", "ITA", "FRA", "ESP")
+
+
+cov_curve %>%
+  filter(iso3 %in% focus_cn) %>% ## focus on just a few countries, defined above
+  mutate(end_label = recode(end_label, `United States` = "USA",
+                        `Iran, Islamic Republic of` = "Iran", 
+                        `Korea, Republic of` = "South Korea", 
+                        `United Kingdom` = "UK")) %>%
+  ggplot(mapping = aes(x = days_elapsed, y = cu_deaths, 
+         color = cname, label = end_label, 
+         group = cname)) + 
+#  geom_point() + 
+  geom_line(size = 0.8) + 
+  geom_text_repel(nudge_x = 1.1, segment.color = NA) + 
+  guides(color = FALSE) + 
+  scale_color_manual(values = paletteer::paletteer_d("ggthemes::few_Dark")) +
+  scale_y_continuous(labels = scales::comma, 
+                     trans = "log2") + 
+  labs(x = "Days Since 100th Confirmed Case", 
+       y = "Cumulative Number of Deaths (log2 scale)", 
+       title = "Cumulative Deaths from COVID-19, Selected Countries", 
+       subtitle = paste("Data as of", format(max(cov_curve$date), "%A, %B %e, %Y")), 
+       caption = "Kieran Healy @kjhealy / Data: ECDC")
+
+
+
+```
+
+
 
 ```{r us-only}
 
