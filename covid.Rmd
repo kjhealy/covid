@@ -383,6 +383,14 @@ cov_curve %>%
 
 ```
 
+```{r table}
+cov_curve %>%
+  group_by(iso3) %>%
+  filter(cu_deaths == max(cu_deaths)) %>%
+  arrange(desc(cu_deaths)) %>%
+  select(cname, cu_cases, cu_deaths, days_elapsed)
+
+```
 
 
 ```{r us-only}
