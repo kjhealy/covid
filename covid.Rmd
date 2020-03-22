@@ -325,7 +325,7 @@ cov_curve <- covid %>%
          cu_deaths = cumsum(deaths)) %>%
   filter(cu_deaths > 9) %>%
   mutate(days_elapsed = date - min(date),
-         end_label = ifelse(date == max(date), cname, NA))
+          end_label = ifelse(date == max(date), cname, NA))
 
 cov_curve
 
@@ -383,7 +383,15 @@ cu_out %>%
   filter(cname == "United States", date > "2020-02-20") %>%
   ggplot(mapping = aes(x = date, y = count, 
                        color = measure)) + 
-  geom_line(size = 1.5) + 
+  geom_line(size = 1) + 
+  geom_text_repel(nudge_x = 1.1,
+                  nudge_y = 0.1, 
+                  segment.color = NA) + 
+  guides(color = FALSE) + 
+  scale_color_manual(values = prismatic::clr_darken(paletteer_d("ggsci::category20_d3"), 0.2)) +
+  scale_y_continuous(labels = scales::comma_format(accuracy = 1), 
+                     breaks = 2^seq(4, 12),
+                     trans = "log2")
   scale_color_manual(values = col_pal) + 
   scale_y_continuous(trans = "log2",
                      labels = scales::comma_format(accuracy = 1),
@@ -407,12 +415,14 @@ us_states <- us_states_raw %>%
 
 us_states %>%
   group_by(state) %>%
-  filter(measure == "positive") %>%
-  summarize(total = sum(count)) %>%
-  arrange(desc(total)) %>%
-  top_n(10) %>%
-  ggplot(aes(x = total, y = reorder(state, total))) + 
+  filter(measure == "positive", date == max(date)) %>%
+  drop_na() %>%
+  ungroup() %>%
+  arrange(desc(count)) %>%
+  top_n(10, count) %>%
+   ggplot(aes(x = count, y = reorder(state, count))) + 
   geom_point(size = 3) + 
+  scale_x_continuous(, trans = "log2", labels = scales::comma_format(accuracy = 1)) + 
   labs(title = "Total Recorded Cases to Date",
        y = NULL, 
        x = "Count") + 
@@ -421,21 +431,33 @@ us_states %>%
 
 us_states %>%
   group_by(state) %>%
-  mutate(flag = state == "NY") %>%
+  mutate(core = case_when(state == "NY" ~ "NY", 
+                          state == "WA" ~ "WA", 
+                          state == "CA" ~ "CA", 
+                          TRUE ~ ""),
+         end_label = ifelse(date == max(date), core, NA)) %>%
   arrange(date) %>%
   filter(measure == "positive", date > "2020-03-09") %>%
   mutate(cu_total = cumsum(count)) %>%
-  top_n(10) %>%
-  ggplot(aes(x = date, y = cu_total, group = state, color = flag)) + 
+  ggplot(aes(x = date, y = cu_total, group = state, color = core, label = end_label)) + 
   geom_line(size = 0.5) + 
-  scale_color_manual(values = c("gray50", "red")) + 
+  geom_text_repel(segment.color = NA) + 
+  scale_color_manual(values = c("gray70", "#E69F00", "#56B4E9", "#009E73")) + 
+  scale_y_continuous(trans = "log2",
+                     labels = scales::comma_format(accuracy = 1),
+                     breaks = 2^c(seq(1, 18, 2))) +
   guides(color = FALSE) + 
-  labs(title = "Cumulative Cases to Date, by State",
-       y = "Cases", 
-       x = "Date") + 
-  annotate("text", x = lubridate::ymd("2020-03-19"), y = 10500, 
-           label = "NY", color = "red") + 
-  theme(axis.text.y = element_text(size = rel(2)))
+  labs(title = "COVID-19 Cumulative Recorded Cases by US State",
+       x = "Date", y = "Cumulative Reported Events (log 2 scale)", 
+       caption = "Data: covidtracking.com / Graph: @kjhealy") +
+        theme(plot.title = element_text(size = rel(2), face = "bold"),
+          plot.subtitle = element_text(size = rel(1.5)),
+          axis.text.y = element_text(size = rel(2)),
+          axis.title.x = element_text(size = rel(1.5)),
+          axis.title.y = element_text(size = rel(1.5)),
+          axis.text.x = element_text(size = rel(2)),
+          legend.text = element_text(size = rel(2))
+          )
 
 
 ```
