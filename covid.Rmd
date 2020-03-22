@@ -7,6 +7,7 @@ author:
 date: '`r format(Sys.Date(), "%B %d, %Y")`'
 crossrefYaml: "config/pandoc-crossref-settings.yaml"
 output:
+  html_document: radix::radix_article
   pdf_document: 
     md_extensions: +simple_tables+table_captions+yaml_metadata_block+smart
     template: /Users/kjhealy/.pandoc/templates/rmd-latex.template
@@ -16,14 +17,13 @@ output:
       "--filter", "pandoc-citeproc",
       "--csl", "/Users/kjhealy/.pandoc/csl/ajps.csl"
       ]      
-  html_document: radix::radix_article
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r libraries, echo = FALSE}
+```{r libraries, echo = TRUE}
 
 library(tidyverse)
 library(lubridate)
@@ -349,11 +349,11 @@ cov_curve %>%
   guides(color = FALSE) + 
   scale_color_manual(values = prismatic::clr_darken(paletteer_d("ggsci::category20_d3"), 0.2)) +
   scale_y_continuous(labels = scales::comma_format(accuracy = 1), 
-                     breaks = c(32, 64, 128, 256, 512, 1024, 2048),
+                     breaks = 2^seq(4, 12),
                      trans = "log2") + 
   labs(x = "Days Since 10th Confirmed Death", 
-       y = "Cumulative Number of Deaths (log2 scale)", 
-       title = "Cumulative Deaths from COVID-19, Selected Countries", 
+       y = "Cumulative Number of Deaths (log scale)", 
+       title = "Cumulative Reported Deaths from COVID-19, Selected Countries", 
        subtitle = paste("Data as of", format(max(cov_curve$date), "%A, %B %e, %Y")), 
        caption = "Kieran Healy @kjhealy / Data: ECDC") + 
     theme(plot.title = element_text(size = rel(2), face = "bold"),
@@ -433,10 +433,9 @@ us_states %>%
   labs(title = "Cumulative Cases to Date, by State",
        y = "Cases", 
        x = "Date") + 
-  annotate("text", x = lubridate::ymd("2020-03-19"), y = 11800, 
+  annotate("text", x = lubridate::ymd("2020-03-19"), y = 10500, 
            label = "NY", color = "red") + 
   theme(axis.text.y = element_text(size = rel(2)))
 
 
 ```
-
