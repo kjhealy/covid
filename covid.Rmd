@@ -349,11 +349,11 @@ cov_curve %>%
   guides(color = FALSE) + 
   scale_color_manual(values = prismatic::clr_darken(paletteer_d("ggsci::category20_d3"), 0.2)) +
   scale_y_continuous(labels = scales::comma_format(accuracy = 1), 
-                     breaks = 2^seq(4, 12),
+                     breaks = 2^seq(4, 13),
                      trans = "log2") + 
   labs(x = "Days Since 10th Confirmed Death", 
-       y = "Cumulative Number of Deaths (log scale)", 
-       title = "Cumulative Reported Deaths from COVID-19, Selected Countries", 
+       y = "Cumulative Number of Deaths (log2 scale)", 
+       title = "Cumulative Number of Reported Deaths from COVID-19, Selected Countries", 
        subtitle = paste("Data as of", format(max(cov_curve$date), "%A, %B %e, %Y")), 
        caption = "Kieran Healy @kjhealy / Data: ECDC") + 
     theme(plot.title = element_text(size = rel(2), face = "bold"),
@@ -376,6 +376,51 @@ cov_curve %>%
 
 ```
 
+```{r}
+cov_case_curve <- covid %>%
+  select(date, cname, iso3, cases, deaths) %>%
+  drop_na(iso3) %>%
+  group_by(iso3) %>%
+  arrange(date) %>%
+  mutate(cu_cases = cumsum(cases), 
+         cu_deaths = cumsum(deaths)) %>%
+  filter(cu_cases > 99) %>%
+  mutate(days_elapsed = date - min(date),
+          end_label = ifelse(date == max(date), cname, NA))
+
+cov_case_curve %>%
+  filter(iso3 %in% focus_cn) %>% ## focus on just a few countries, defined above
+  mutate(end_label = recode(end_label, `United States` = "USA",
+                        `Iran, Islamic Republic of` = "Iran", 
+                        `Korea, Republic of` = "South Korea", 
+                        `United Kingdom` = "UK")) %>%
+  ggplot(mapping = aes(x = days_elapsed, y = cu_cases, 
+         color = cname, label = end_label, 
+         group = cname)) + 
+  geom_line(size = 0.8) + 
+  geom_text_repel(nudge_x = 1.1,
+                  nudge_y = 0.1, 
+                  segment.color = NA) + 
+  guides(color = FALSE) + 
+  scale_color_manual(values = prismatic::clr_darken(paletteer_d("ggsci::category20_d3"), 0.2)) +
+  scale_y_continuous(labels = scales::comma_format(accuracy = 1), 
+                     breaks = 2^seq(4, 16, 1),
+                     trans = "log2") + 
+  labs(x = "Days Since 100th Confirmed Case", 
+       y = "Cumulative Number of Reported Cases (log2 scale)", 
+       title = "Cumulative Reported Cases of COVID-19, Selected Countries", 
+       subtitle = paste("Data as of", format(max(cov_curve$date), "%A, %B %e, %Y")), 
+       caption = "Kieran Healy @kjhealy / Data: ECDC") + 
+    theme(plot.title = element_text(size = rel(2), face = "bold"),
+          plot.subtitle = element_text(size = rel(1.5)),
+          axis.text.y = element_text(size = rel(2)),
+          axis.title.x = element_text(size = rel(1.5)),
+          axis.title.y = element_text(size = rel(1.5)),
+          axis.text.x = element_text(size = rel(2)),
+          legend.text = element_text(size = rel(2))
+          )
+
+```
 
 ```{r us-only}
 
@@ -435,20 +480,21 @@ us_states %>%
   mutate(core = case_when(state == "NY" ~ "NY", 
                           state == "WA" ~ "WA", 
                           state == "CA" ~ "CA", 
+                          state == "NJ" ~ "NJ",
                           TRUE ~ ""),
          end_label = ifelse(date == max(date), core, NA)) %>%
   arrange(date) %>%
   filter(measure == "positive", date > "2020-03-09") %>%
-  mutate(cu_total = cumsum(count)) %>%
-  ggplot(aes(x = date, y = cu_total, group = state, color = core, label = end_label)) + 
+  ggplot(aes(x = date, y = count, group = state, color = core, label = end_label)) + 
   geom_line(size = 0.5) + 
-  geom_text_repel(segment.color = NA) + 
-  scale_color_manual(values = c("gray70", "#E69F00", "#56B4E9", "#009E73")) + 
+  geom_text_repel(segment.color = NA, nudge_x = 0.2, nudge_y = 0.1) + 
+  scale_color_manual(values = c("gray70", "#E69F00", "#56B4E9", "#009E73", "#0072B2")) + 
   scale_y_continuous(trans = "log2",
                      labels = scales::comma_format(accuracy = 1),
-                     breaks = 2^c(seq(1, 18, 2))) +
+                     breaks = 2^c(seq(1, 17, 1))) +
   guides(color = FALSE) + 
   labs(title = "COVID-19 Cumulative Recorded Cases by US State",
+       subtitle = paste("Data as of", format(max(us_states$date), "%A, %B %e, %Y")),
        x = "Date", y = "Cumulative Reported Events (log 2 scale)", 
        caption = "Data: covidtracking.com / Graph: @kjhealy") +
         theme(plot.title = element_text(size = rel(2), face = "bold"),
