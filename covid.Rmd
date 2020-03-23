@@ -472,10 +472,12 @@ us_states %>%
                      labels = scales::comma_format(accuracy = 1)) + 
   labs(title = "Total Recorded Cases to Date",
        subtitle = paste("Top 10 States. Data as of", format(max(us_states$date), "%A, %B %e, %Y")),
+       caption = "Data: COVID Tracking Project, http://covidtracking.com | Graph: @kjhealy",
        y = NULL, 
        x = "Count") + 
   theme(plot.title = element_text(size = rel(2), face = "bold"),
           plot.subtitle = element_text(size = rel(1.5)),
+          plot.caption = element_text(size = rel(0.9)),
           axis.text.y = element_text(size = rel(2)),
           axis.title.x = element_text(size = rel(1.5)),
           axis.title.y = element_text(size = rel(1.5)),
@@ -506,9 +508,10 @@ us_states %>%
   labs(title = "COVID-19 Cumulative Recorded Cases by US State",
        subtitle = paste("Data as of", format(max(us_states$date), "%A, %B %e, %Y")),
        x = "Date", y = "Cumulative Reported Events (log 2 scale)", 
-       caption = "Data: covidtracking.com / Graph: @kjhealy") +
+       caption = "Data: COVID Tracking Project, http://covidtracking.com | Graph: @kjhealy") +
         theme(plot.title = element_text(size = rel(2), face = "bold"),
           plot.subtitle = element_text(size = rel(1.5)),
+          plot.caption = element_text(size = rel(0.9)),
           axis.text.y = element_text(size = rel(2)),
           axis.title.x = element_text(size = rel(1.5)),
           axis.title.y = element_text(size = rel(1.5)),
@@ -518,3 +521,6 @@ us_states %>%
 
 
 ```
+
+
+
