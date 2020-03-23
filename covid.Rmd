@@ -492,7 +492,6 @@ us_states %>%
                           state == "WA" ~ "WA", 
                           state == "CA" ~ "CA", 
                           state == "NJ" ~ "NJ",
-#                          state == "FL" ~ "FL",
                           TRUE ~ ""),
          end_label = ifelse(date == max(date), core, NA)) %>%
   arrange(date) %>%
@@ -501,10 +500,12 @@ us_states %>%
   geom_line(size = 0.5) + 
   geom_text_repel(segment.color = NA, nudge_x = 0.2, nudge_y = 0.1) + 
   scale_color_manual(values = c("gray70", "#E69F00", "#56B4E9", "#009E73", "#0072B2")) + 
+  scale_x_date(date_breaks = "3 days", date_labels = "%b %e" ) + 
   scale_y_continuous(trans = "log2",
                      labels = scales::comma_format(accuracy = 1),
                      breaks = 2^c(seq(1, 17, 1))) +
   guides(color = FALSE) + 
+  coord_equal() + 
   labs(title = "COVID-19 Cumulative Recorded Cases by US State",
        subtitle = paste("Data as of", format(max(us_states$date), "%A, %B %e, %Y")),
        x = "Date", y = "Cumulative Reported Events (log 2 scale)", 
