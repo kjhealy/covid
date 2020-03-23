@@ -468,11 +468,20 @@ us_states %>%
    ggplot(aes(x = count, y = reorder(state, count))) + 
   geom_point(size = 3) + 
   scale_x_continuous(trans = "log2", 
+                     breaks = 2^c(seq(1, 17, 1)),
                      labels = scales::comma_format(accuracy = 1)) + 
   labs(title = "Total Recorded Cases to Date",
+       subtitle = paste("Top 10 States. Data as of", format(max(us_states$date), "%A, %B %e, %Y")),
        y = NULL, 
        x = "Count") + 
-  theme(axis.text.y = element_text(size = rel(2)))
+  theme(plot.title = element_text(size = rel(2), face = "bold"),
+          plot.subtitle = element_text(size = rel(1.5)),
+          axis.text.y = element_text(size = rel(2)),
+          axis.title.x = element_text(size = rel(1.5)),
+          axis.title.y = element_text(size = rel(1.5)),
+          axis.text.x = element_text(size = rel(2)),
+          legend.text = element_text(size = rel(2))
+          )
 
 
 us_states %>%
@@ -481,6 +490,7 @@ us_states %>%
                           state == "WA" ~ "WA", 
                           state == "CA" ~ "CA", 
                           state == "NJ" ~ "NJ",
+#                          state == "FL" ~ "FL",
                           TRUE ~ ""),
          end_label = ifelse(date == max(date), core, NA)) %>%
   arrange(date) %>%
