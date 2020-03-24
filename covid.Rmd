@@ -7,7 +7,7 @@ author:
 date: '`r format(Sys.Date(), "%B %d, %Y")`'
 crossrefYaml: "config/pandoc-crossref-settings.yaml"
 output:
-  html_document: radix::radix_article
+  html_document: distill::distill_article
   pdf_document: 
     md_extensions: +simple_tables+table_captions+yaml_metadata_block+smart
     template: /Users/kjhealy/.pandoc/templates/rmd-latex.template
@@ -313,9 +313,8 @@ cu_out %>%
   
 ```
 
-```{r}
-## The graph everyone draws, but let's use deaths not cases, given that testing is so 
-## laggy in so many places
+```{r, layout="l-body-outset", fig.width=10, fig.height=8}
+## The graph everyone draws
 cov_curve <- covid %>%
   select(date, cname, iso3, cases, deaths) %>%
   drop_na(iso3) %>%
@@ -329,25 +328,31 @@ cov_curve <- covid %>%
 
 cov_curve
 
-focus_cn <- c("CHN", "GBR", "USA", "IRN", "JPN",
-              "KOR", "ITA", "FRA", "ESP")
+focus_cn <- c("CHN", "DEU", "GBR", "USA", "IRN", "JPN",
+              "KOR", "ITA", "FRA", "ESP", "CHE")
+
+## Colors
+cgroup_cols <- c(prismatic::clr_darken(paletteer_d("ggsci::category20_d3"), 0.2)[1:length(focus_cn)], "gray70")
 
 
 cov_curve %>%
-  filter(iso3 %in% focus_cn) %>% ## focus on just a few countries, defined above
   mutate(end_label = recode(end_label, `United States` = "USA",
                         `Iran, Islamic Republic of` = "Iran", 
                         `Korea, Republic of` = "South Korea", 
-                        `United Kingdom` = "UK")) %>%
+                        `United Kingdom` = "UK"),
+          end_label = case_when(iso3 %in% focus_cn ~ end_label,
+                               TRUE ~ NA_character_), 
+         cgroup = case_when(iso3 %in% focus_cn ~ iso3, 
+                            TRUE ~ "ZZOTHER")) %>%
   ggplot(mapping = aes(x = days_elapsed, y = cu_deaths, 
-         color = cname, label = end_label, 
+         color = cgroup, label = end_label, 
          group = cname)) + 
   geom_line(size = 0.8) + 
   geom_text_repel(nudge_x = 1.1,
                   nudge_y = 0.1, 
                   segment.color = NA) + 
   guides(color = FALSE) + 
-  scale_color_manual(values = prismatic::clr_darken(paletteer_d("ggsci::category20_d3"), 0.2)) +
+  scale_color_manual(values = cgroup_cols) +
   scale_y_continuous(labels = scales::comma_format(accuracy = 1), 
                      breaks = 2^seq(4, 13),
                      trans = "log2") + 
@@ -355,9 +360,10 @@ cov_curve %>%
        y = "Cumulative Number of Deaths (log2 scale)", 
        title = "Cumulative Number of Reported Deaths from COVID-19, Selected Countries", 
        subtitle = paste("Data as of", format(max(cov_curve$date), "%A, %B %e, %Y")), 
-       caption = "Kieran Healy @kjhealy / Data: ECDC") + 
+        caption = "Kieran Healy @kjhealy / Data: https://www.ecdc.europa.eu/") + 
     theme(plot.title = element_text(size = rel(2), face = "bold"),
           plot.subtitle = element_text(size = rel(1.5)),
+          plot.caption = element_text(size = rel(0.9)),
           axis.text.y = element_text(size = rel(2)),
           axis.title.x = element_text(size = rel(1.5)),
           axis.title.y = element_text(size = rel(1.5)),
@@ -376,7 +382,9 @@ cov_curve %>%
 
 ```
 
-```{r}
+```{r, layout="l-body-outset", fig.width=10, fig.height=8}
+
+
 cov_case_curve <- covid %>%
   select(date, cname, iso3, cases, deaths) %>%
   drop_na(iso3) %>%
@@ -388,31 +396,36 @@ cov_case_curve <- covid %>%
   mutate(days_elapsed = date - min(date),
           end_label = ifelse(date == max(date), cname, NA))
 
+
 cov_case_curve %>%
-  filter(iso3 %in% focus_cn) %>% ## focus on just a few countries, defined above
   mutate(end_label = recode(end_label, `United States` = "USA",
                         `Iran, Islamic Republic of` = "Iran", 
                         `Korea, Republic of` = "South Korea", 
-                        `United Kingdom` = "UK")) %>%
+                        `United Kingdom` = "UK"), 
+         end_label = case_when(iso3 %in% focus_cn ~ end_label,
+                               TRUE ~ NA_character_), 
+         cgroup = case_when(iso3 %in% focus_cn ~ iso3, 
+                            TRUE ~ "ZZOTHER")) %>%
   ggplot(mapping = aes(x = days_elapsed, y = cu_cases, 
-         color = cname, label = end_label, 
+         color = cgroup, label = end_label, 
          group = cname)) + 
   geom_line(size = 0.8) + 
   geom_text_repel(nudge_x = 1.1,
                   nudge_y = 0.1, 
                   segment.color = NA) + 
   guides(color = FALSE) + 
-  scale_color_manual(values = prismatic::clr_darken(paletteer_d("ggsci::category20_d3"), 0.2)) +
+  scale_color_manual(values = cgroup_cols) +
   scale_y_continuous(labels = scales::comma_format(accuracy = 1), 
                      breaks = 2^seq(4, 16, 1),
                      trans = "log2") + 
   labs(x = "Days Since 100th Confirmed Case", 
        y = "Cumulative Number of Reported Cases (log2 scale)", 
        title = "Cumulative Reported Cases of COVID-19, Selected Countries", 
-       subtitle = paste("Data as of", format(max(cov_curve$date), "%A, %B %e, %Y")), 
-       caption = "Kieran Healy @kjhealy / Data: ECDC") + 
+       subtitle = paste("ECDC data as of", format(max(cov_curve$date), "%A, %B %e, %Y")), 
+       caption = "Kieran Healy @kjhealy / Data: https://www.ecdc.europa.eu/") + 
     theme(plot.title = element_text(size = rel(2), face = "bold"),
           plot.subtitle = element_text(size = rel(1.5)),
+          plot.caption = element_text(size = rel(0.9)),
           axis.text.y = element_text(size = rel(2)),
           axis.title.x = element_text(size = rel(1.5)),
           axis.title.y = element_text(size = rel(1.5)),
@@ -422,35 +435,10 @@ cov_case_curve %>%
 
 ```
 
-```{r us-only}
-
-cu_out %>% 
-  filter(cname == "United States", date > "2020-02-20") %>%
-  ggplot(mapping = aes(x = date, y = count, 
-                       color = measure)) + 
-  geom_line(size = 1) + 
-  geom_text_repel(nudge_x = 1.1,
-                  nudge_y = 0.1, 
-                  segment.color = NA) + 
-  guides(color = FALSE) + 
-  scale_color_manual(values = prismatic::clr_darken(paletteer_d("ggsci::category20_d3"), 0.2)) +
-  scale_y_continuous(labels = scales::comma_format(accuracy = 1), 
-                     breaks = 2^seq(4, 12),
-                     trans = "log2")
-  scale_color_manual(values = col_pal) + 
-  scale_y_continuous(trans = "log2",
-                     labels = scales::comma_format(accuracy = 1),
-                     breaks = 2^c(seq(1, 17, 2))) +
-  labs(title = "COVID-19 Cumulative Recorded Cases and Deaths in the United States",
-       x = "Date", y = "Cumulative Reported Events (log 2 scale)", color = "Measure") +
-  theme(legend.position = "top")
-
-
-```
 
 ## US State-Level Data from [https://covidtracking.com]
 
-```{r}
+```{r, layout="l-body-outset", fig.width=5, fig.height=4}
 
 us_states_raw <- get_uscovid_data()
 
@@ -484,8 +472,9 @@ us_states %>%
           axis.text.x = element_text(size = rel(2)),
           legend.text = element_text(size = rel(2))
           )
+```
 
-
+```{r, layout="l-body-outset", fig.width=10, fig.height=8}
 us_states %>%
   group_by(state) %>%
   mutate(core = case_when(state == "NY" ~ "NY", 
