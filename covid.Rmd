@@ -441,6 +441,14 @@ us_states <- us_states_raw %>%
   mutate(date = lubridate::ymd(date)) %>%
   pivot_longer(positive:death, names_to = "measure", values_to = "count")
 
+max(us_states$date)
+
+us_states %>%
+  filter(measure == "positive", date == max(date)) %>%
+  drop_na() %>%
+  ungroup() %>%
+  arrange(desc(count))
+
 us_states %>%
   group_by(state) %>%
   filter(measure == "positive", date == max(date)) %>%
@@ -457,16 +465,22 @@ us_states %>%
        subtitle = paste("Top 10 States. Data as of", format(max(us_states$date), "%A, %B %e, %Y")),
        caption = "Data: COVID Tracking Project, http://covidtracking.com | Graph: @kjhealy",
        y = NULL, 
-       x = "Count") + 
+       x = "Count (log2 scale") 
 ```
 
 ```{r, layout="l-body-outset", fig.width=10, fig.height=8}
+
+state_cols <- c("gray70", 
+                prismatic::clr_darken(paletteer_d("ggsci::category20_d3"), 0.2)[1:5])
+
+
 us_states %>%
   group_by(state) %>%
   mutate(core = case_when(state == "NY" ~ "NY", 
                           state == "WA" ~ "WA", 
                           state == "CA" ~ "CA", 
                           state == "NJ" ~ "NJ",
+                          state == "MI" ~ "MI",
                           TRUE ~ ""),
          end_label = ifelse(date == max(date), core, NA)) %>%
   arrange(date) %>%
@@ -474,7 +488,7 @@ us_states %>%
   ggplot(aes(x = date, y = count, group = state, color = core, label = end_label)) + 
   geom_line(size = 0.5) + 
   geom_text_repel(segment.color = NA, nudge_x = 0.2, nudge_y = 0.1) + 
-  scale_color_manual(values = c("gray70", "#E69F00", "#56B4E9", "#009E73", "#0072B2")) + 
+  scale_color_manual(values = state_cols) + 
   scale_x_date(date_breaks = "3 days", date_labels = "%b %e" ) + 
   scale_y_continuous(trans = "log2",
                      labels = scales::comma_format(accuracy = 1),
