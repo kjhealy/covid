@@ -471,7 +471,7 @@ us_states %>%
 ```{r, layout="l-body-outset", fig.width=10, fig.height=8}
 
 state_cols <- c("gray70", 
-                prismatic::clr_darken(paletteer_d("ggsci::category20_d3"), 0.2)[1:5])
+                prismatic::clr_darken(paletteer_d("ggsci::category20_d3"), 0.2))
 
 
 us_states %>%
