@@ -465,7 +465,7 @@ us_states %>%
        subtitle = paste("Top 10 States. Data as of", format(max(us_states$date), "%A, %B %e, %Y")),
        caption = "Data: COVID Tracking Project, http://covidtracking.com | Graph: @kjhealy",
        y = NULL, 
-       x = "Count (log2 scale") 
+       x = "Count (log2 scale)") 
 ```
 
 ```{r, layout="l-body-outset", fig.width=10, fig.height=8}
