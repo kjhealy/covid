@@ -73,13 +73,14 @@ col_pal <- c("#E69F00", "#0072B2", "#000000", "#56B4E9",
 get_ecdc_data <- function(url = "https://www.ecdc.europa.eu/sites/default/files/documents/",
                           fname = "COVID-19-geographic-distribution-worldwide-", 
                           date = lubridate::today(), 
+                          writedate = lubridate::today(), 
                           ext = "xlsx", 
                           dest = "data") {
   
   target <-  paste0(url, fname, date, ".", ext)
   message("target: ", target)
 
-  destination <- fs::path(here::here("data"), paste0(fname, date), ext = ext)
+  destination <- fs::path(here::here("data"), paste0(fname, writedate), ext = ext)
   message("saving to: ", destination)
   
   tf <- tempfile(fileext = ext)
@@ -215,8 +216,11 @@ oceania <- c("ASM", "AUS", "NZL", "COK", "FJI", "PYF", "GUM", "KIR", "MNP", "MHL
 ## I assume this'll get fixed or changed at some point. 
 ## The good thing is that these data files are cumulative
 
+## on 3/25/20 they changed the file name to omit the date
+
 covid_raw <- get_ecdc_data(url = "https://www.ecdc.europa.eu/sites/default/files/documents/",
-                           fname = "COVID-19-geographic-disbtribution-worldwide-",
+                           fname = "COVID-19-geographic-disbtribution-worldwide",
+                           date = "",
                            ext = "xlsx")
 covid_raw
 
@@ -388,7 +392,6 @@ cov_curve %>%
 
 ```{r, layout="l-body-outset", fig.width=10, fig.height=8}
 
-
 cov_case_curve <- covid %>%
   select(date, cname, iso3, cases, deaths) %>%
   drop_na(iso3) %>%
@@ -484,11 +487,11 @@ us_states %>%
                           TRUE ~ ""),
          end_label = ifelse(date == max(date), core, NA)) %>%
   arrange(date) %>%
-  filter(measure == "positive", date > "2020-03-09", core %nin% "") %>%
+  filter(measure == "positive", date > "2020-03-09") %>%
   ggplot(aes(x = date, y = count, group = state, color = core, label = end_label)) + 
   geom_line(size = 0.5) + 
   geom_text_repel(segment.color = NA, nudge_x = 0.2, nudge_y = 0.1) + 
-  scale_color_manual(values = state_cols[2:length(state_cols)]) + 
+  scale_color_manual(values = state_cols) + 
   scale_x_date(date_breaks = "3 days", date_labels = "%b %e" ) + 
   scale_y_continuous(trans = "log2",
                      labels = scales::comma_format(accuracy = 1),
