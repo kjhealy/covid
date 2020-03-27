@@ -476,6 +476,8 @@ top_50 <- cov_case_curve %>%
                         `Korea, Republic of` = "South Korea", 
                         `United Kingdom` = "UK")) 
 
+top_50
+
 cov_case_curve_bg <- cov_case_curve %>% 
   select(-cname) %>%
   filter(iso3 %in% top_50$iso3) 
