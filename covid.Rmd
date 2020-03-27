@@ -458,11 +458,11 @@ cov_case_curve %>%
 ```
 
 
-```{r like-jbm}
+```{r like-jbm, layout="l-body-outset", fig.width=10, fig.height=12}
 ## Replicate JB Murdoch's small multiple, only don't alphabetize countries. 
 ## https://www.ft.com/coronavirus-latest
 
-## Top 70 countries by >> 100 cases, let's say. 
+## Top 50 countries by >> 100 cases, let's say. 
 top_50 <- cov_case_curve %>%
   group_by(cname) %>%
   filter(cu_cases == max(cu_cases)) %>%
