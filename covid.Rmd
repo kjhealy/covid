@@ -69,31 +69,7 @@ col_pal <- c("#E69F00", "#0072B2", "#000000", "#56B4E9",
 
 ```{r functions}
 
-## Download today's excel file, saving it to data/ and reading it in
-# get_ecdc_data <- function(url = "https://www.ecdc.europa.eu/sites/default/files/documents/",
-#                           fname = "COVID-19-geographic-distribution-worldwide-", 
-#                           date = lubridate::today(), 
-#                           writedate = lubridate::today(), 
-#                           ext = "xlsx", 
-#                           dest = "data") {
-#   
-#   target <-  paste0(url, fname, date, ".", ext)
-#   message("target: ", target)
-# 
-#   destination <- fs::path(here::here("data"), paste0(fname, writedate), ext = ext)
-#   message("saving to: ", destination)
-#   
-#   tf <- tempfile(fileext = ext)
-#   curl::curl_download(target, tf)
-#   fs::file_copy(tf, destination)
-#   
-#   switch(ext, 
-#   xls = janitor::clean_names(readxl::read_xls(tf)),
-#   xlsx = janitor::clean_names(readxl::read_xlsx(tf))
-#   )
-# }                          
-
-
+## Download today's CSV file, saving it to data/ and also read it in
 get_ecdc_csv <- function(url = "https://opendata.ecdc.europa.eu/covid19/casedistribution/csv",
                           date = lubridate::today(), 
                           writedate = lubridate::today(), 
@@ -116,7 +92,6 @@ get_ecdc_csv <- function(url = "https://opendata.ecdc.europa.eu/covid19/casedist
 
 
 ## Get Daily COVID Tracking Project Data
-
 ## form is https://covidtracking.com/api/us/daily.csv
 
 get_uscovid_data <- function(url = "https://covidtracking.com/api/",
@@ -139,6 +114,18 @@ get_uscovid_data <- function(url = "https://covidtracking.com/api/",
   
   janitor::clean_names(read_csv(tf))
 }                          
+
+## Which n states are leading the count of positive cases or deaths?
+top_n_states <- function(data, n = 5, measure = c("positive", "death")) {
+  meas <- match.arg(measure)
+  data %>%
+  group_by(state) %>%
+  filter(measure == meas, date == max(date)) %>%
+  drop_na() %>%
+  ungroup() %>%
+  top_n(n, wt = count) %>%
+  pull(state)
+}
 
 
 ## A useful function from Edward Visel, which does a thing
@@ -550,6 +537,8 @@ ggsave("figures/cov_case_sm.png",
 ```{r, layout="l-body-outset", fig.width=5, fig.height=4}
 
 us_states_raw <- get_uscovid_data()
+## us_states_raw <- read_csv("data/covid_us/states_daily_2020-03-28.csv")
+
 
 us_states <- us_states_raw %>%
   mutate(date = lubridate::ymd(date)) %>%
@@ -587,15 +576,10 @@ us_states %>%
 state_cols <- c("gray70", 
                 prismatic::clr_darken(paletteer_d("ggsci::category20_d3"), 0.2))
 
-
 us_states %>%
   group_by(state) %>%
-  mutate(core = case_when(state == "NY" ~ "NY", 
-                          state == "WA" ~ "WA", 
-                          state == "CA" ~ "CA", 
-                          state == "NJ" ~ "NJ",
-                          state == "MI" ~ "MI",
-                          TRUE ~ ""),
+  mutate(core = case_when(state %nin% top_n_states(us_states) ~ "",
+                          TRUE ~ state),
          end_label = ifelse(date == max(date), core, NA)) %>%
   arrange(date) %>%
   filter(measure == "positive", date > "2020-03-09") %>%
@@ -620,18 +604,11 @@ us_states %>%
   ungroup() %>%
   arrange(desc(count))
 
-
-
 us_states %>%
   group_by(state) %>%
-  mutate(core = case_when(state == "NY" ~ "NY", 
-                          state == "WA" ~ "WA", 
-                          state == "CA" ~ "CA", 
-                          state == "NJ" ~ "NJ",
-                          state == "LA" ~ "LA",
-                          state == "MI" ~ "MI",
-                          TRUE ~ ""),
-         end_label = ifelse(date == max(date), core, NA)) %>%
+    mutate(core = case_when(state %nin% top_n_states(us_states, measure = "death") ~ "",
+                          TRUE ~ state),
+           end_label = ifelse(date == max(date), core, NA)) %>%
   arrange(date) %>%
   filter(measure == "death", date > "2020-03-09") %>%
   ggplot(aes(x = date, y = count, group = state, color = core, label = end_label)) + 
