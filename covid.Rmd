@@ -366,7 +366,15 @@ cov_curve <- covid %>%
          cu_deaths = cumsum(deaths)) %>%
   filter(cu_deaths > 9) %>%
   mutate(days_elapsed = date - min(date),
-          end_label = ifelse(date == max(date), cname, NA))
+          end_label = ifelse(date == max(date), cname, NA),
+          end_label = recode(end_label, `United States` = "USA",
+                        `Iran, Islamic Republic of` = "Iran", 
+                        `Korea, Republic of` = "South Korea", 
+                        `United Kingdom` = "UK"),
+         cname = recode(cname, `United States` = "USA",
+                        `Iran, Islamic Republic of` = "Iran", 
+                        `Korea, Republic of` = "South Korea", 
+                        `United Kingdom` = "UK"))
 
 cov_curve
 
@@ -378,11 +386,7 @@ cgroup_cols <- c(prismatic::clr_darken(paletteer_d("ggsci::category20_d3"), 0.2)
 
 
 cov_curve %>%
-  mutate(end_label = recode(end_label, `United States` = "USA",
-                        `Iran, Islamic Republic of` = "Iran", 
-                        `Korea, Republic of` = "South Korea", 
-                        `United Kingdom` = "UK"),
-          end_label = case_when(iso3 %in% focus_cn ~ end_label,
+  mutate(end_label = case_when(iso3 %in% focus_cn ~ end_label,
                                TRUE ~ NA_character_), 
          cgroup = case_when(iso3 %in% focus_cn ~ iso3, 
                             TRUE ~ "ZZOTHER")) %>%
@@ -425,15 +429,19 @@ cov_case_curve <- covid %>%
          cu_deaths = cumsum(deaths)) %>%
   filter(cu_cases > 99) %>%
   mutate(days_elapsed = date - min(date),
-          end_label = ifelse(date == max(date), cname, NA))
+          end_label = ifelse(date == max(date), cname, NA),
+          end_label = recode(end_label, `United States` = "USA",
+                        `Iran, Islamic Republic of` = "Iran", 
+                        `Korea, Republic of` = "South Korea", 
+                        `United Kingdom` = "UK"),
+         cname = recode(cname, `United States` = "USA",
+                        `Iran, Islamic Republic of` = "Iran", 
+                        `Korea, Republic of` = "South Korea", 
+                        `United Kingdom` = "UK"))
 
 
 cov_case_curve %>%
-  mutate(end_label = recode(end_label, `United States` = "USA",
-                        `Iran, Islamic Republic of` = "Iran", 
-                        `Korea, Republic of` = "South Korea", 
-                        `United Kingdom` = "UK"), 
-         end_label = case_when(iso3 %in% focus_cn ~ end_label,
+  mutate(end_label = case_when(iso3 %in% focus_cn ~ end_label,
                                TRUE ~ NA_character_), 
          cgroup = case_when(iso3 %in% focus_cn ~ iso3, 
                             TRUE ~ "ZZOTHER")) %>%
@@ -470,11 +478,7 @@ top_50 <- cov_case_curve %>%
   top_n(50, cu_cases) %>%
   select(iso3, cname, cu_cases) %>%
   mutate(days_elapsed = 1, 
-             cu_cases = max(cov_case_curve$cu_cases) - 1e4,
-          cname = recode(cname, `United States` = "USA",
-                        `Iran, Islamic Republic of` = "Iran", 
-                        `Korea, Republic of` = "South Korea", 
-                        `United Kingdom` = "UK")) 
+             cu_cases = max(cov_case_curve$cu_cases) - 1e4) 
 
 top_50
 
@@ -484,10 +488,6 @@ cov_case_curve_bg <- cov_case_curve %>%
 
 cov_case_curve_endpoints <- cov_case_curve %>% 
   filter(iso3 %in% top_50$iso3) %>%
-  mutate(cname = recode(cname, `United States` = "USA",
-                        `Iran, Islamic Republic of` = "Iran", 
-                        `Korea, Republic of` = "South Korea", 
-                        `United Kingdom` = "UK")) %>%
   group_by(iso3) %>%
   filter(cu_cases == max(cu_cases)) %>%
   select(cname, iso3, days_elapsed, cu_cases) %>%
@@ -496,10 +496,6 @@ cov_case_curve_endpoints <- cov_case_curve %>%
 
 cov_case_sm <- cov_case_curve  %>%
   filter(iso3 %in% top_50$iso3) %>%
-  mutate(cname = recode(cname, `United States` = "USA",
-                        `Iran, Islamic Republic of` = "Iran", 
-                        `Korea, Republic of` = "South Korea", 
-                        `United Kingdom` = "UK")) %>%
   ggplot(mapping = aes(x = days_elapsed, y = cu_cases)) + 
   geom_line(data = cov_case_curve_bg, 
             aes(group = iso3),
