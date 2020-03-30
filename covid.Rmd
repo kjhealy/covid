@@ -427,7 +427,7 @@ cov_case_curve <- covid %>%
                         `United Kingdom` = "UK"))
 
 
-cov_case_curve %>%
+(p_national_grouped <- cov_case_curve %>%
   mutate(end_label = case_when(iso3 %in% focus_cn ~ end_label,
                                TRUE ~ NA_character_), 
          cgroup = case_when(iso3 %in% focus_cn ~ iso3, 
@@ -435,20 +435,26 @@ cov_case_curve %>%
   ggplot(mapping = aes(x = days_elapsed, y = cu_cases, 
          color = cgroup, label = end_label, 
          group = cname)) + 
-  geom_line(size = 0.8) + 
-  geom_text_repel(nudge_x = 0.5,
+  geom_line(size = 0.5) + 
+  geom_text_repel(nudge_x = 0.6,
                   nudge_y = -0.1, 
                   segment.color = NA) + 
   guides(color = FALSE) + 
   scale_color_manual(values = cgroup_cols) +
   scale_y_continuous(labels = scales::comma_format(accuracy = 1), 
-                     breaks = 2^seq(4, 16, 1),
+                     breaks = 2^seq(4, 17, 1),
                      trans = "log2") + 
   labs(x = "Days Since 100th Confirmed Case", 
        y = "Cumulative Number of Reported Cases (log2 scale)", 
        title = "Cumulative Reported Cases of COVID-19, Selected Countries", 
        subtitle = paste("ECDC data as of", format(max(cov_curve$date), "%A, %B %e, %Y")), 
        caption = "Kieran Healy @kjhealy / Data: https://www.ecdc.europa.eu/") 
+)
+
+
+ggsave("figures/cov_case_grouped.png", p_national_grouped,
+       width = 10, height = 8, dpi = 300)
+
 
 ```
 
@@ -576,7 +582,7 @@ us_states %>%
 state_cols <- c("gray70", 
                 prismatic::clr_darken(paletteer_d("ggsci::category20_d3"), 0.2))
 
-us_states %>%
+(p_state_cases <- us_states %>%
   group_by(state) %>%
   mutate(core = case_when(state %nin% top_n_states(us_states) ~ "",
                           TRUE ~ state),
@@ -597,12 +603,18 @@ us_states %>%
        subtitle = paste("Data as of", format(max(us_states$date), "%A, %B %e, %Y")),
        x = "Date", y = "Count of Cases (log 2 scale)", 
        caption = "Data: COVID Tracking Project, http://covidtracking.com | Graph: @kjhealy")
+)
 
+ggsave("figures/p_state_casetrend.png", p_state_cases, width = 9, height = 9)
+  
+  
 us_states %>%
   filter(measure == "death", date == max(date)) %>%
   drop_na() %>%
   ungroup() %>%
   arrange(desc(count))
+
+
 
 us_states %>%
   group_by(state) %>%
