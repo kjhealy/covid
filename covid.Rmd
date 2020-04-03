@@ -366,13 +366,13 @@ cov_curve <- covid %>%
 cov_curve
 
 focus_cn <- c("CHN", "DEU", "GBR", "USA", "IRN", "JPN",
-              "KOR", "ITA", "FRA", "ESP", "CHE")
+              "KOR", "ITA", "FRA", "ESP", "CHE", "TUR")
 
 ## Colors
 cgroup_cols <- c(prismatic::clr_darken(paletteer_d("ggsci::category20_d3"), 0.2)[1:length(focus_cn)], "gray70")
 
 
-cov_curve %>%
+(p_death_curve <- cov_curve %>%
   mutate(end_label = case_when(iso3 %in% focus_cn ~ end_label,
                                TRUE ~ NA_character_), 
          cgroup = case_when(iso3 %in% focus_cn ~ iso3, 
@@ -387,13 +387,14 @@ cov_curve %>%
   guides(color = FALSE) + 
   scale_color_manual(values = cgroup_cols) +
   scale_y_continuous(labels = scales::comma_format(accuracy = 1), 
-                     breaks = 2^seq(4, 13),
+                     breaks = 2^seq(4, 14),
                      trans = "log2") + 
   labs(x = "Days Since 10th Confirmed Death", 
        y = "Cumulative Number of Deaths (log2 scale)", 
        title = "Cumulative Number of Reported Deaths from COVID-19, Selected Countries", 
        subtitle = paste("Data as of", format(max(cov_curve$date), "%A, %B %e, %Y")), 
         caption = "Kieran Healy @kjhealy / Data: https://www.ecdc.europa.eu/") 
+)
 ```
 
 ```{r table}
@@ -414,7 +415,7 @@ cov_case_curve <- covid %>%
   arrange(date) %>%
   mutate(cu_cases = cumsum(cases), 
          cu_deaths = cumsum(deaths)) %>%
-  filter(cu_cases > 99) %>%
+#  filter(cu_cases > 99) %>%
   mutate(days_elapsed = date - min(date),
           end_label = ifelse(date == max(date), cname, NA),
           end_label = recode(end_label, `United States` = "USA",
@@ -427,7 +428,7 @@ cov_case_curve <- covid %>%
                         `United Kingdom` = "UK"))
 
 
-(p_national_grouped <- cov_case_curve %>%
+(p_case_curve <- cov_case_curve %>%
   mutate(end_label = case_when(iso3 %in% focus_cn ~ end_label,
                                TRUE ~ NA_character_), 
          cgroup = case_when(iso3 %in% focus_cn ~ iso3, 
@@ -436,8 +437,7 @@ cov_case_curve <- covid %>%
          color = cgroup, label = end_label, 
          group = cname)) + 
   geom_line(size = 0.5) + 
-  geom_text_repel(nudge_x = 0.6,
-                  nudge_y = -0.1, 
+  geom_text_repel(nudge_x = 0.75,
                   segment.color = NA) + 
   guides(color = FALSE) + 
   scale_color_manual(values = cgroup_cols) +
@@ -452,7 +452,7 @@ cov_case_curve <- covid %>%
 )
 
 
-ggsave("figures/cov_case_grouped.png", p_national_grouped,
+ggsave("figures/cov_case_grouped.png", p_case_curve,
        width = 10, height = 8, dpi = 300)
 
 
@@ -463,56 +463,61 @@ ggsave("figures/cov_case_grouped.png", p_national_grouped,
 ## Replicate JB Murdoch's small multiple, only don't alphabetize countries. 
 ## https://www.ft.com/coronavirus-latest
 
-## Top 50 countries by >> 100 cases, let's say. 
-top_50 <- cov_case_curve %>%
+## Top N countries by >> 100 cases, let's say. 
+n_countries <- 50
+
+country_panels <- cov_case_curve %>%
   group_by(cname) %>%
   filter(cu_cases == max(cu_cases)) %>%
+  filter(row_number() == 1) %>%
   ungroup() %>%
-  top_n(50, cu_cases) %>%
+  top_n(n_countries, cu_cases) %>%
   select(iso3, cname, cu_cases) %>%
   mutate(days_elapsed = 1, 
-             cu_cases = max(cov_case_curve$cu_cases) - 1e4) 
+             cu_cases = max(cov_case_curve$cu_cases) - 9e4) 
 
-top_50
+country_panels
 
 cov_case_curve_bg <- cov_case_curve %>% 
   select(-cname) %>%
-  filter(iso3 %in% top_50$iso3) 
+  filter(iso3 %in% country_panels$iso3) 
 
 cov_case_curve_endpoints <- cov_case_curve %>% 
-  filter(iso3 %in% top_50$iso3) %>%
+  filter(iso3 %in% country_panels$iso3) %>%
   group_by(iso3) %>%
+  arrange(desc(date)) %>%
   filter(cu_cases == max(cu_cases)) %>%
+  filter(row_number() == 1) %>%
   select(cname, iso3, days_elapsed, cu_cases) %>%
   ungroup()
 
 
-cov_case_sm <- cov_case_curve  %>%
-  filter(iso3 %in% top_50$iso3) %>%
+(p_cov_case_sm <- cov_case_curve  %>%
+  filter(iso3 %in% country_panels$iso3) %>%
   ggplot(mapping = aes(x = days_elapsed, y = cu_cases)) + 
   geom_line(data = cov_case_curve_bg, 
             aes(group = iso3),
-            size = 0.15, color = "gray80") + 
+            size = rel(0.2), color = "gray80") + 
   geom_line(color = "firebrick",
             lineend = "round") + 
   geom_point(data = cov_case_curve_endpoints, 
-             size = 1.1, 
+             size = rel(1), 
              shape = 21, 
              color = "firebrick",
              fill = "firebrick2"
              ) + 
-  geom_text(data = top_50, 
-             mapping = aes(label = cname), 
-             vjust = "inward", 
+  geom_text(data = country_panels,
+             mapping = aes(label = cname),
+             vjust = "inward",
              hjust = "inward",
-             fontface = "bold", 
-             color = "firebrick", 
-             size = 2.1) + 
+             fontface = "bold",
+             color = "firebrick",
+             size = rel(1.85)) +
   scale_y_log10(labels = scales::label_number_si()) + 
   facet_wrap(~ reorder(cname, -cu_cases), ncol = 5) + 
   labs(x = "Days Since 100th Confirmed Case", 
        y = "Cumulative Number of Cases (log10 scale)", 
-       title = "Cumulative Number of Reported Cases of COVID-19: Top 50 Countries", 
+       title = "Cumulative Number of Reported Cases of COVID-19: Selected Countries", 
        subtitle = paste("Data as of", format(max(cov_curve$date), "%A, %B %e, %Y")), 
         caption = "Kieran Healy @kjhealy / Data: https://www.ecdc.europa.eu/") + 
   theme(plot.title = element_text(size = rel(1), face = "bold"),
@@ -526,13 +531,64 @@ cov_case_sm <- cov_case_curve  %>%
           axis.title.y = element_text(size = rel(1)),
           axis.text.x = element_text(size = rel(0.5)),
           legend.text = element_text(size = rel(1)))
+)
 
 
 ggsave("figures/cov_case_sm.pdf", 
-       cov_case_sm, width = 10, height = 12)
+       p_cov_case_sm, width = 8, height = 12)
 
 ggsave("figures/cov_case_sm.png", 
-       cov_case_sm, width = 10, height = 12, dpi = 300)
+       p_cov_case_sm, width = 8, height = 12, dpi = 300)
+
+
+```
+
+## Plotly Example 
+```{r, plotly, eval = FALSE}
+library(plotly)
+
+country_plotly <- cov_case_curve %>%
+  ungroup() %>%
+  select(date, cname, cu_cases, cu_deaths, days_elapsed) %>%
+  rename(Country = cname, Date = date, Cases = cu_cases, Deaths = cu_deaths, Days = days_elapsed)
+  
+country_plotly <- highlight_key(country_plotly, ~ Country)
+
+(p_cov_case_sm <- 
+  ggplot(data = country_plotly, 
+         mapping = aes(x = Days, y = Cases, group = Country)) + 
+  geom_line(lineend = "round", size = 0.15) + 
+  scale_y_log10(labels = scales::label_number_si()) + 
+  labs(x = "Days Since 100th Confirmed Case", 
+       y = "Cumulative Number of Cases (log10 scale)") + 
+    theme_minimal()
+)
+  
+gg <- ggplotly(p_cov_case_sm, tooltip = c("Country", "Days", "Cases"))
+
+plotly_cases <- layout(highlight(gg), 
+                        font = "inherit") 
+
+
+(p_cov_deaths_sm <- 
+  ggplot(data = country_plotly, 
+         mapping = aes(x = Days, y = Deaths, group = Country)) + 
+  geom_line(lineend = "round", size = 0.15) + 
+  scale_y_log10(labels = scales::label_number_si()) + 
+  labs(x = "Days Since 10th Confirmed Death", 
+       y = "Cumulative Number of Deaths (log10 scale)") + 
+    theme_minimal()
+)
+  
+gg <- ggplotly(p_cov_deaths_sm, tooltip = c("Country", "Days", "Deaths"))
+
+plotly_deaths <- layout(highlight(gg), font = "inherit")
+
+library(htmlwidgets)
+library(widgetframe)
+
+saveWidget(frameableWidget(partial_bundle(plotly_cases)), "p1.html", selfcontained = F, libdir = "javascripts")
+saveWidget(frameableWidget(partial_bundle(plotly_deaths)), "p2.html", selfcontained = F, libdir = "javascripts")
 
 
 ```
@@ -543,12 +599,12 @@ ggsave("figures/cov_case_sm.png",
 ```{r, layout="l-body-outset", fig.width=5, fig.height=4}
 
 us_states_raw <- get_uscovid_data()
-## us_states_raw <- read_csv("data/covid_us/states_daily_2020-03-28.csv")
-
 
 us_states <- us_states_raw %>%
   mutate(date = lubridate::ymd(date)) %>%
-  pivot_longer(positive:death, names_to = "measure", values_to = "count")
+  select(-hash, -date_checked) %>%
+  pivot_longer(positive:total_test_results, 
+               names_to = "measure", values_to = "count")
 
 max(us_states$date)
 
@@ -614,8 +670,6 @@ us_states %>%
   ungroup() %>%
   arrange(desc(count))
 
-
-
 us_states %>%
   group_by(state) %>%
     mutate(core = case_when(state %nin% top_n_states(us_states, measure = "death") ~ "",
@@ -640,6 +694,4 @@ us_states %>%
 
 
 ```
-
-
 
