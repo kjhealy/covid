@@ -415,7 +415,7 @@ cov_case_curve <- covid %>%
   arrange(date) %>%
   mutate(cu_cases = cumsum(cases), 
          cu_deaths = cumsum(deaths)) %>%
-#  filter(cu_cases > 99) %>%
+  filter(cu_cases > 99) %>%
   mutate(days_elapsed = date - min(date),
           end_label = ifelse(date == max(date), cname, NA),
           end_label = recode(end_label, `United States` = "USA",
@@ -442,7 +442,7 @@ cov_case_curve <- covid %>%
   guides(color = FALSE) + 
   scale_color_manual(values = cgroup_cols) +
   scale_y_continuous(labels = scales::comma_format(accuracy = 1), 
-                     breaks = 2^seq(4, 17, 1),
+                     breaks = 2^seq(4, 18, 1),
                      trans = "log2") + 
   labs(x = "Days Since 100th Confirmed Case", 
        y = "Cumulative Number of Reported Cases (log2 scale)", 
