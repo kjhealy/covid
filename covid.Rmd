@@ -7,7 +7,6 @@ author:
 date: '`r format(Sys.Date(), "%B %d, %Y")`'
 crossrefYaml: "config/pandoc-crossref-settings.yaml"
 output:
-  html_document: distill::distill_article
   pdf_document: 
     md_extensions: +simple_tables+table_captions+yaml_metadata_block+smart
     template: /Users/kjhealy/.pandoc/templates/rmd-latex.template
@@ -17,10 +16,12 @@ output:
       "--filter", "pandoc-citeproc",
       "--csl", "/Users/kjhealy/.pandoc/csl/ajps.csl"
       ]      
+  html_document: distill::distill_article
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, 
+                      fig.showtext = TRUE)
 ```
 
 ```{r libraries, echo = TRUE}
@@ -380,7 +381,7 @@ cgroup_cols <- c(prismatic::clr_darken(paletteer_d("ggsci::category20_d3"), 0.2)
   ggplot(mapping = aes(x = days_elapsed, y = cu_deaths, 
          color = cgroup, label = end_label, 
          group = cname)) + 
-  geom_line(size = 0.8) + 
+  geom_line(size = 0.5) + 
   geom_text_repel(nudge_x = 1.1,
                   nudge_y = 0.1, 
                   segment.color = NA) + 
@@ -587,8 +588,10 @@ plotly_deaths <- layout(highlight(gg), font = "inherit")
 library(htmlwidgets)
 library(widgetframe)
 
-saveWidget(frameableWidget(partial_bundle(plotly_cases)), "p1.html", selfcontained = F, libdir = "javascripts")
-saveWidget(frameableWidget(partial_bundle(plotly_deaths)), "p2.html", selfcontained = F, libdir = "javascripts")
+saveWidget(frameableWidget(partial_bundle(plotly_cases)), "p1.html", 
+           selfcontained = F, libdir = "javascripts")
+saveWidget(frameableWidget(partial_bundle(plotly_deaths)), "p2.html", 
+           selfcontained = F, libdir = "javascripts")
 
 
 ```
@@ -694,4 +697,5 @@ us_states %>%
 
 
 ```
+
 
