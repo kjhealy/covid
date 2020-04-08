@@ -443,7 +443,7 @@ cov_case_curve <- covid %>%
   guides(color = FALSE) + 
   scale_color_manual(values = cgroup_cols) +
   scale_y_continuous(labels = scales::comma_format(accuracy = 1), 
-                     breaks = 2^seq(4, 18, 1),
+                     breaks = 2^seq(4, 19, 1),
                      trans = "log2") + 
   labs(x = "Days Since 100th Confirmed Case", 
        y = "Cumulative Number of Reported Cases (log2 scale)", 
