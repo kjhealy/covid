@@ -398,6 +398,11 @@ cgroup_cols <- c(prismatic::clr_darken(paletteer_d("ggsci::category20_d3"), 0.2)
 )
 ```
 
+```{r}
+write_csv(cov_case_curve, "data/cov_cases.csv")
+```
+
+
 ```{r table}
 cov_curve %>%
   group_by(iso3) %>%
@@ -406,6 +411,8 @@ cov_curve %>%
   select(cname, cu_cases, cu_deaths, days_elapsed)
 
 ```
+
+
 
 ```{r, layout="l-body-outset", fig.width=10, fig.height=8}
 
